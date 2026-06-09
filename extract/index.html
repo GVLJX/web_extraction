@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图片文字提取工具 - 极简办公</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+        body {
+            font-family: 'Inter', 'Noto Sans SC', sans-serif;
+        }
+        .drag-over {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        #image-wrapper {
+            transition: transform 0.15s ease-out;
+            transform-origin: center center;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- 顶部导航 -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="bg-blue-600 text-white p-2 rounded-lg shadow-md shadow-blue-100">
+                    <i data-lucide="scan-text" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold text-slate-900 tracking-tight">图片文字提取</h1>
+                    <p class="text-xs text-slate-500">专业、轻量的 OCR 识别工具</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-4">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <span class="w-1.5 h-1.5 mr-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    API 已连接 (智谱 GLM-4V-Plus)
+                </span>
+                <a href="#" class="text-slate-400 hover:text-slate-600 transition">
+                    <i data-lucide="help-circle" class="w-5 h-5"></i>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主体区域 -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col">
+
+        <div class="mb-6 bg-blue-50 border border-blue-100 rounded-xl p-4 flex items-start space-x-3 text-sm text-blue-800">
+            <i data-lucide="info" class="w-5 h-5 text-blue-600 mt-0.5 shrink-0"></i>
+            <div>
+                <span class="font-semibold">使用指南：</span>
+                支持直接 <span class="underline decoration-dotted">点击上传</span>、<span class="underline decoration-dotted">拖拽图片到窗口</span> 或直接使用 <span class="bg-blue-100 px-1.5 py-0.5 rounded font-mono text-xs">Ctrl + V / Cmd + V</span> 粘贴。在预览图上<span class="font-semibold text-blue-700">拖拽鼠标</span>可选择提取范围，支持右上角工具栏进行<span class="font-semibold text-blue-700">旋转</span>、<span class="font-semibold text-blue-700">缩放</span>及<span class="font-semibold text-blue-700">切换移动/框选模式</span>。
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch flex-grow">
+
+            <!-- 左栏：图片输入/预览区域 -->
+            <div class="flex flex-col bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-md font-semibold text-slate-900 flex items-center space-x-2">
+                        <i data-lucide="image" class="w-5 h-5 text-slate-500"></i>
+                        <span>输入图片源</span>
+                    </h2>
+                    <span id="img-specs" class="text-xs text-slate-400 hidden">尺寸: -- | 大小: --</span>
+                </div>
+
+                <div id="drop-zone" class="flex-grow border-2 border-dashed border-slate-300 hover:border-blue-400 rounded-xl transition-all duration-200 flex flex-col items-center justify-center p-6 text-center cursor-pointer relative overflow-auto min-h-[350px] bg-slate-50/50">
+                    <input type="file" id="file-input" class="absolute inset-0 opacity-0 cursor-pointer" accept="image/*">
+
+                    <div id="upload-prompt" class="space-y-4">
+                        <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto text-slate-400 transition-transform group-hover:scale-110">
+                            <i data-lucide="upload-cloud" class="w-8 h-8"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm font-semibold text-slate-700">点击上传 或将图片拖拽到这里</p>
+                            <p class="text-xs text-slate-400 mt-1">支持 PNG, JPG, JPEG, WEBP 格式</p>
+                        </div>
+                        <div class="pt-2">
+                            <span class="inline-flex items-center space-x-1.5 bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-600 shadow-sm hover:shadow">
+                                <i data-lucide="clipboard" class="w-3.5 h-3.5 text-slate-400"></i>
+                                <span>支持剪贴板粘贴</span>
+                            </span>
+                        </div>
+                    </div>
+
+                    <div id="preview-container" class="hidden w-full h-full flex flex-col items-center justify-center relative">
+                        <div id="image-wrapper" class="relative inline-block max-h-[380px] max-w-full select-none mx-auto">
+                            <img id="image-preview" class="max-h-[380px] w-auto max-w-full rounded-lg block border border-slate-200 shadow-sm" alt="预览图">
+
+                            <div id="selection-mask" class="absolute inset-0 bg-black/30 cursor-crosshair rounded-lg overflow-hidden hidden">
+                                <div id="selection-box" class="absolute border-2 border-dashed border-blue-500 bg-blue-500/10 hidden shadow-[0_0_0_9999px_rgba(0,0,0,0.4)]">
+                                    <div class="absolute bottom-full left-0 mb-1.5 bg-blue-600/90 backdrop-blur-sm text-white text-[10px] font-medium px-1.5 py-0.5 rounded shadow flex items-center space-x-1 whitespace-nowrap pointer-events-none select-none">
+                                        <i data-lucide="crop" class="w-2.5 h-2.5"></i>
+                                        <span>已选范围</span>
+                                    </div>
+                                    <button id="btn-clear-selection" class="absolute top-full right-0 mt-1.5 bg-slate-950/80 hover:bg-slate-900 text-white text-[10px] px-1.5 py-0.5 rounded shadow flex items-center space-x-1 whitespace-nowrap transition z-20">
+                                        <i data-lucide="x" class="w-2.5 h-2.5"></i>
+                                        <span>取消框选</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="absolute top-2 left-2 z-10 bg-slate-900/80 backdrop-blur-sm text-white text-[10px] sm:text-xs px-2.5 py-1 rounded-full flex items-center space-x-1 pointer-events-none">
+                            <i data-lucide="mouse-pointer-square-dashed" class="w-3.5 h-3.5 text-blue-400" id="prompt-icon"></i>
+                            <span id="prompt-text">拖拽鼠标可选择提取范围</span>
+                        </div>
+
+                        <div class="absolute top-2 right-2 z-20 bg-slate-900/90 backdrop-blur-sm text-white px-2.5 py-1 rounded-full flex items-center space-x-2.5 shadow-lg border border-slate-700/50">
+                            <button id="btn-mode-select" class="p-1 text-blue-400 bg-slate-800/80 rounded transition-colors" title="框选模式">
+                                <i data-lucide="mouse-pointer-square-dashed" class="w-4 h-4"></i>
+                            </button>
+                            <button id="btn-mode-pan" class="p-1 hover:text-blue-400 rounded transition-colors" title="移动图片模式">
+                                <i data-lucide="hand" class="w-4 h-4"></i>
+                            </button>
+
+                            <div class="w-[1px] h-3 bg-slate-700"></div>
+
+                            <button id="btn-zoom-out" class="p-1 hover:text-blue-400 hover:bg-slate-800/80 rounded transition-colors" title="缩小">
+                                <i data-lucide="zoom-out" class="w-4 h-4"></i>
+                            </button>
+                            <span id="zoom-level" class="text-xs font-mono font-medium min-w-[36px] text-center">100%</span>
+                            <button id="btn-zoom-in" class="p-1 hover:text-blue-400 hover:bg-slate-800/80 rounded transition-colors" title="放大">
+                                <i data-lucide="zoom-in" class="w-4 h-4"></i>
+                            </button>
+
+                            <div class="w-[1px] h-3 bg-slate-700"></div>
+
+                            <button id="btn-rotate-ccw" class="p-1 hover:text-blue-400 hover:bg-slate-800/80 rounded transition-colors" title="向左旋转90°">
+                                <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                            </button>
+                            <button id="btn-rotate-cw" class="p-1 hover:text-blue-400 hover:bg-slate-800/80 rounded transition-colors" title="向右旋转90°">
+                                <i data-lucide="rotate-cw" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+
+                        <div class="absolute inset-x-0 bottom-2 z-10 flex justify-center pointer-events-none opacity-0 hover:opacity-100 transition-opacity duration-200">
+                            <button id="btn-reupload-overlay" class="pointer-events-auto bg-slate-900/90 hover:bg-slate-950 text-white text-xs font-medium px-3 py-2 rounded-lg flex items-center space-x-1.5 shadow transition">
+                                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                                <span>更换图片</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-6 flex items-center space-x-4">
+                    <button id="btn-clear" class="px-4 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-sm font-medium transition flex items-center justify-center space-x-2 shrink-0 disabled:opacity-50 disabled:pointer-events-none" disabled>
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        <span>重新上传</span>
+                    </button>
+                    <button id="btn-extract" class="flex-grow px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl text-sm transition flex items-center justify-center space-x-2 shadow-lg shadow-blue-100 disabled:opacity-50 disabled:pointer-events-none" disabled>
+                        <i data-lucide="zap" class="w-4 h-4"></i>
+                        <span id="btn-text">开始提取文字</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 右栏：文字提取结果展示 -->
+            <div class="flex flex-col bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-md font-semibold text-slate-900 flex items-center space-x-2">
+                        <i data-lucide="file-text" class="w-5 h-5 text-slate-500"></i>
+                        <span>文字提取结果</span>
+                    </h2>
+
+                    <div id="status-panel" class="flex items-center space-x-2 text-xs">
+                        <span id="status-badge" class="inline-flex items-center px-2 py-0.5 rounded font-medium bg-slate-100 text-slate-600">
+                            待上传
+                        </span>
+                        <span id="time-badge" class="text-slate-400 hidden">
+                            <i data-lucide="clock" class="inline w-3 h-3 mr-0.5"></i>
+                            耗时: <span id="time-val">0.0s</span>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="flex-grow flex flex-col relative min-h-[350px]">
+                    <div id="loading-overlay" class="hidden absolute inset-0 bg-white/80 backdrop-blur-[1px] z-30 flex flex-col items-center justify-center text-center space-y-4 rounded-xl">
+                        <div class="w-12 h-12 rounded-full border-4 border-blue-100 border-t-blue-600 animate-spin"></div>
+                        <div>
+                            <p class="text-sm font-semibold text-slate-800" id="loading-title">正在解析图像...</p>
+                            <p class="text-xs text-slate-500 mt-1" id="loading-subtitle">AI 正在深度解析字符与版式结构</p>
+                        </div>
+                    </div>
+
+                    <div id="tips-alert" class="hidden mb-3 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-lg p-3 flex items-start space-x-2">
+                        <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-600 mt-0.5 shrink-0"></i>
+                        <div>
+                            <span class="font-semibold">提取质量提示：</span>
+                            <span id="tips-content">检测到图片分辨率较低或模糊，建议上传高清晰度截图以获得更精确的文字还原。</span>
+                        </div>
+                    </div>
+
+                    <textarea id="result-text" class="w-full flex-grow p-4 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm leading-relaxed text-slate-700 bg-slate-50/50 resize-none placeholder:text-slate-400" placeholder="提取结果将显示在这里，您可以直接在此处进行二次编辑、整理或修正..." readonly></textarea>
+                </div>
+
+                <div class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
+                    <div class="flex items-center space-x-2 text-xs text-slate-400">
+                        <i data-lucide="info" class="w-4 h-4"></i>
+                        <span>支持手动编辑修改，方便直接整理归档</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button id="btn-copy" class="px-3.5 py-2 border border-slate-200 hover:bg-slate-50 rounded-xl text-xs font-medium text-slate-700 transition flex items-center space-x-1.5 disabled:opacity-50 disabled:pointer-events-none" disabled>
+                            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                            <span id="copy-text">一键复制</span>
+                        </button>
+                        <button id="btn-download" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-medium transition flex items-center space-x-1.5 disabled:opacity-50 disabled:pointer-events-none" disabled>
+                            <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                            <span>下载 TXT</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <footer class="bg-white border-t border-slate-200 py-6 mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-xs text-slate-400 space-y-2">
+            <p>基于 智谱 GLM-4V-Plus 构建的文字提取演示</p>
+            <p>© 2026 智能办公助手. All Rights Reserved.</p>
+        </div>
+    </footer>
+
+    <div id="toast" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white px-4 py-2.5 rounded-xl text-sm font-medium shadow-lg flex items-center space-x-2 translate-y-24 opacity-0 transition-all duration-300 z-50">
+        <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400" id="toast-icon"></i>
+        <span id="toast-msg">复制成功</span>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        // 智谱 API 配置
+        const apiKey = "dfe806a8c9004ef29a497f97537816ab.bO8BayHIfxy3g5bg";
+        const modelName = "glm-4v-plus";
+        const apiUrl = "https://open.bigmodel.cn/api/paas/v4/chat/completions";
+
+        let currentBase64Image = null;
+        let imageMimeType = null;
+        let recognitionStartTime = null;
+
+        let zoomScale = 1.0;
+        let isDragging = false;
+        let hasSelection = false;
+        let startX = 0;
+        let startY = 0;
+
+        let panX = 0;
+        let panY = 0;
+
+        let activeMode = 'select';
+        let isPanning = false;
+        let panStartX = 0;
+        let panStartY = 0;
+        let scrollStartX = 0;
+        let scrollStartY = 0;
+
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const uploadPrompt = document.getElementById('upload-prompt');
+        const previewContainer = document.getElementById('preview-container');
+        const imagePreview = document.getElementById('image-preview');
+        const imgSpecs = document.getElementById('img-specs');
+
+        const btnClear = document.getElementById('btn-clear');
+        const btnExtract = document.getElementById('btn-extract');
+        const btnReuploadOverlay = document.getElementById('btn-reupload-overlay');
+        const btnText = document.getElementById('btn-text');
+
+        const statusBadge = document.getElementById('status-badge');
+        const timeBadge = document.getElementById('time-badge');
+        const timeVal = document.getElementById('time-val');
+        const resultText = document.getElementById('result-text');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const loadingTitle = document.getElementById('loading-title');
+        const loadingSubtitle = document.getElementById('loading-subtitle');
+        const tipsAlert = document.getElementById('tips-alert');
+        const tipsContent = document.getElementById('tips-content');
+
+        const btnCopy = document.getElementById('btn-copy');
+        const btnDownload = document.getElementById('btn-download');
+        const toast = document.getElementById('toast');
+        const toastMsg = document.getElementById('toast-msg');
+        const toastIcon = document.getElementById('toast-icon');
+
+        const imageWrapper = document.getElementById('image-wrapper');
+        const selectionMask = document.getElementById('selection-mask');
+        const selectionBox = document.getElementById('selection-box');
+        const btnClearSelection = document.getElementById('btn-clear-selection');
+
+        const promptIcon = document.getElementById('prompt-icon');
+        const promptText = document.getElementById('prompt-text');
+
+        const btnZoomIn = document.getElementById('btn-zoom-in');
+        const btnZoomOut = document.getElementById('btn-zoom-out');
+        const zoomLevel = document.getElementById('zoom-level');
+        const btnRotateCcw = document.getElementById('btn-rotate-ccw');
+        const btnRotateCw = document.getElementById('btn-rotate-cw');
+        const btnModeSelect = document.getElementById('btn-mode-select');
+        const btnModePan = document.getElementById('btn-mode-pan');
+
+        // 事件监听（完全保持原样）
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            window.addEventListener(eventName, preventDefaults, false);
+            document.body.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => {
+                if (activeMode === 'select') dropZone.classList.add('drag-over');
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.remove('drag-over'), false);
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files.length > 0) {
+                handleImageFile(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleImageFile(e.target.files[0]);
+            }
+        });
+
+        window.addEventListener('paste', (e) => {
+            const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+            for (let index in items) {
+                const item = items[index];
+                if (item.kind === 'file' && item.type.startsWith('image/')) {
+                    const blob = item.getAsFile();
+                    handleImageFile(blob);
+                    showToast('已从剪贴板读取粘贴的图片');
+                    break;
+                }
+            }
+        });
+
+        btnReuploadOverlay.addEventListener('click', (e) => {
+            e.stopPropagation();
+            fileInput.click();
+        });
+
+        function handleImageFile(file) {
+            if (!file.type.startsWith('image/')) {
+                showToast('上传失败：必须为图片类型文件', 'alert-triangle', 'text-amber-500');
+                return;
+            }
+
+            const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
+            imgSpecs.textContent = `文件大小: ${sizeInMB} MB`;
+            imgSpecs.classList.remove('hidden');
+
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onloadend = () => {
+                const base64Data = reader.result;
+                currentBase64Image = base64Data.split(',')[1];
+                imageMimeType = file.type;
+
+                imagePreview.src = base64Data;
+                uploadPrompt.classList.add('hidden');
+                previewContainer.classList.remove('hidden');
+
+                selectionMask.classList.remove('hidden');
+                clearSelection();
+                resetZoom();
+                setMode('select');
+
+                dropZone.style.overflow = 'hidden';
+
+                btnClear.removeAttribute('disabled');
+                btnExtract.removeAttribute('disabled');
+
+                updateStatus('待识别', 'bg-blue-50 text-blue-700 border border-blue-200');
+                timeBadge.classList.add('hidden');
+                resultText.value = '';
+                resultText.setAttribute('readonly', 'true');
+                btnCopy.setAttribute('disabled', 'true');
+                btnDownload.setAttribute('disabled', 'true');
+                tipsAlert.classList.add('hidden');
+
+                const img = new Image();
+                img.src = base64Data;
+                img.onload = function() {
+                    imgSpecs.textContent = `尺寸: ${this.width} x ${this.height} | 大小: ${sizeInMB} MB`;
+                    if (this.width < 500 || this.height < 500) {
+                        showLowResolutionWarning('图片分辨率偏低，提取效果可能会受到影响，建议上传更高清晰度的原图。');
+                    }
+                };
+            };
+        }
+
+        btnClear.addEventListener('click', () => {
+            resetAll();
+        });
+
+        function resetAll() {
+            currentBase64Image = null;
+            imageMimeType = null;
+            fileInput.value = '';
+
+            imagePreview.src = '';
+            uploadPrompt.classList.remove('hidden');
+            previewContainer.classList.add('hidden');
+            imgSpecs.classList.add('hidden');
+            selectionMask.classList.add('hidden');
+            clearSelection();
+            resetZoom();
+            setMode('select');
+            dropZone.style.overflow = 'auto';
+
+            btnClear.setAttribute('disabled', 'true');
+            btnExtract.setAttribute('disabled', 'true');
+
+            resultText.value = '';
+            resultText.setAttribute('readonly', 'true');
+            btnCopy.setAttribute('disabled', 'true');
+            btnDownload.setAttribute('disabled', 'true');
+            tipsAlert.classList.add('hidden');
+            updateStatus('待上传', 'bg-slate-100 text-slate-600');
+            timeBadge.classList.add('hidden');
+        }
+
+        // 选区、缩放、平移、旋转等所有交互函数（完全保留原样）
+        function startDrag(e) {
+            if (e.target === btnClearSelection || btnClearSelection.contains(e.target)) {
+                return;
+            }
+
+            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+
+            if (activeMode === 'pan') {
+                isPanning = true;
+                selectionMask.style.cursor = 'grabbing';
+                panStartX = clientX;
+                panStartY = clientY;
+                scrollStartX = panX;
+                scrollStartY = panY;
+            } else {
+                isDragging = true;
+                const rect = selectionMask.getBoundingClientRect();
+                startX = (clientX - rect.left) / zoomScale;
+                startY = (clientY - rect.top) / zoomScale;
+
+                selectionBox.style.left = `${startX}px`;
+                selectionBox.style.top = `${startY}px`;
+                selectionBox.style.width = '0px';
+                selectionBox.style.height = '0px';
+                selectionBox.classList.remove('hidden');
+            }
+        }
+
+        function drag(e) {
+            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+
+            if (isPanning) {
+                const dx = clientX - panStartX;
+                const dy = clientY - panStartY;
+                panX = scrollStartX + dx;
+                panY = scrollStartY + dy;
+                updateZoomAndPan();
+                return;
+            }
+
+            if (!isDragging) return;
+
+            if (e.cancelable) {
+                e.preventDefault();
+            }
+
+            const rect = selectionMask.getBoundingClientRect();
+            const maxUnscaledWidth = rect.width / zoomScale;
+            const maxUnscaledHeight = rect.height / zoomScale;
+
+            const currentX = Math.max(0, Math.min((clientX - rect.left) / zoomScale, maxUnscaledWidth));
+            const currentY = Math.max(0, Math.min((clientY - rect.top) / zoomScale, maxUnscaledHeight));
+
+            const left = Math.min(startX, currentX);
+            const top = Math.min(startY, currentY);
+            const width = Math.abs(startX - currentX);
+            const height = Math.abs(startY - currentY);
+
+            selectionBox.style.left = `${left}px`;
+            selectionBox.style.top = `${top}px`;
+            selectionBox.style.width = `${width}px`;
+            selectionBox.style.height = `${height}px`;
+        }
+
+        function endDrag() {
+            if (isPanning) {
+                isPanning = false;
+                selectionMask.style.cursor = 'grab';
+                return;
+            }
+
+            if (!isDragging) return;
+            isDragging = false;
+
+            const width = parseFloat(selectionBox.style.width) || 0;
+            const height = parseFloat(selectionBox.style.height) || 0;
+
+            if (width > 15 && height > 15) {
+                hasSelection = true;
+                btnText.textContent = "开始提取选区文字";
+                btnExtract.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                btnExtract.classList.add('bg-indigo-600', 'hover:bg-indigo-700');
+                showToast('已框选局部提取范围', 'crop', 'text-indigo-400');
+            } else {
+                clearSelection();
+            }
+        }
+
+        function clearSelection() {
+            hasSelection = false;
+            selectionBox.classList.add('hidden');
+            selectionBox.style.width = '0px';
+            selectionBox.style.height = '0px';
+            btnText.textContent = "开始提取文字";
+            btnExtract.classList.remove('bg-indigo-600', 'hover:bg-indigo-700');
+            btnExtract.classList.add('bg-blue-600', 'hover:bg-blue-700');
+        }
+
+        selectionMask.addEventListener('mousedown', startDrag);
+        window.addEventListener('mousemove', drag);
+        window.addEventListener('mouseup', endDrag);
+
+        selectionMask.addEventListener('touchstart', startDrag, { passive: false });
+        window.addEventListener('touchmove', drag, { passive: false });
+        window.addEventListener('touchend', endDrag);
+
+        btnClearSelection.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            clearSelection();
+            showToast('已取消选区，恢复全图提取');
+        });
+
+        function getCroppedBase64() {
+            if (!hasSelection) return currentBase64Image;
+
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+
+            const boxRect = selectionBox.getBoundingClientRect();
+            const imgRect = imagePreview.getBoundingClientRect();
+
+            const scaleX = imagePreview.naturalWidth / imgRect.width;
+            const scaleY = imagePreview.naturalHeight / imgRect.height;
+
+            const sx = (boxRect.left - imgRect.left) * scaleX;
+            const sy = (boxRect.top - imgRect.top) * scaleY;
+            const sWidth = boxRect.width * scaleX;
+            const sHeight = boxRect.height * scaleY;
+
+            canvas.width = sWidth;
+            canvas.height = sHeight;
+
+            ctx.drawImage(imagePreview, sx, sy, sWidth, sHeight, 0, 0, sWidth, sHeight);
+            return canvas.toDataURL(imageMimeType).split(',')[1];
+        }
+
+        function updateZoomAndPan() {
+            imageWrapper.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomScale})`;
+            zoomLevel.textContent = `${Math.round(zoomScale * 100)}%`;
+        }
+
+        function zoomIn() {
+            if (zoomScale < 3.0) {
+                zoomScale += 0.25;
+                updateZoomAndPan();
+            } else {
+                showToast('已达到最大放大比例（300%）', 'zoom-in', 'text-amber-400');
+            }
+        }
+
+        function zoomOut() {
+            if (zoomScale > 0.5) {
+                zoomScale -= 0.25;
+                updateZoomAndPan();
+            } else {
+                showToast('已达到最小缩小比例（50%）', 'zoom-out', 'text-amber-400');
+            }
+        }
+
+        function resetZoom() {
+            zoomScale = 1.0;
+            panX = 0;
+            panY = 0;
+            updateZoomAndPan();
+        }
+
+        function rotateImage(clockwise = true) {
+            if (!imagePreview.src || !currentBase64Image) return;
+
+            setLoading(true, "正在旋转图片...", "请稍候");
+
+            const img = new Image();
+            img.src = imagePreview.src;
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+
+                canvas.width = img.height;
+                canvas.height = img.width;
+
+                if (clockwise) {
+                    ctx.translate(canvas.width, 0);
+                    ctx.rotate(90 * Math.PI / 180);
+                } else {
+                    ctx.translate(0, canvas.height);
+                    ctx.rotate(-90 * Math.PI / 180);
+                }
+
+                ctx.drawImage(img, 0, 0);
+
+                const rotatedBase64 = canvas.toDataURL(imageMimeType);
+                currentBase64Image = rotatedBase64.split(',')[1];
+                imagePreview.src = rotatedBase64;
+
+                const sizeInMB = (rotatedBase64.length * 0.75 / (1024 * 1024)).toFixed(2);
+                imgSpecs.textContent = `尺寸: ${canvas.width} x ${canvas.height} | 大小: ${sizeInMB} MB`;
+
+                clearSelection();
+                panX = 0;
+                panY = 0;
+                updateZoomAndPan();
+
+                setLoading(false);
+                showToast(clockwise ? '已顺时针旋转 90°' : '已逆时针旋转 90°', 'refresh-cw', 'text-blue-400');
+            };
+        }
+
+        function setMode(mode) {
+            activeMode = mode;
+            if (mode === 'select') {
+                btnModeSelect.classList.add('text-blue-400', 'bg-slate-800/80');
+                btnModeSelect.classList.remove('hover:text-blue-400');
+                btnModePan.classList.remove('text-blue-400', 'bg-slate-800/80');
+                btnModePan.classList.add('hover:text-blue-400');
+
+                selectionMask.style.cursor = 'crosshair';
+                promptText.textContent = "拖拽鼠标可选择提取范围";
+                promptIcon.setAttribute('data-lucide', 'mouse-pointer-square-dashed');
+
+                showToast('已进入框选模式，拖拽框选文字范围', 'mouse-pointer-square-dashed', 'text-blue-400');
+            } else {
+                btnModePan.classList.add('text-blue-400', 'bg-slate-800/80');
+                btnModePan.classList.remove('hover:text-blue-400');
+                btnModeSelect.classList.remove('text-blue-400', 'bg-slate-800/80');
+                btnModeSelect.classList.add('hover:text-blue-400');
+
+                selectionMask.style.cursor = 'grab';
+                promptText.textContent = "按住鼠标左键可拖拽移动视图";
+                promptIcon.setAttribute('data-lucide', 'hand');
+
+                showToast('已进入移动模式，支持全方位无限制拖拽漫游图片', 'hand', 'text-blue-400');
+            }
+            lucide.createIcons();
+        }
+
+        btnModeSelect.addEventListener('click', (e) => {
+            e.stopPropagation();
+            setMode('select');
+        });
+
+        btnModePan.addEventListener('click', (e) => {
+            e.stopPropagation();
+            setMode('pan');
+        });
+
+        btnZoomIn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            zoomIn();
+        });
+
+        btnZoomOut.addEventListener('click', (e) => {
+            e.stopPropagation();
+            zoomOut();
+        });
+
+        btnRotateCcw.addEventListener('click', (e) => {
+            e.stopPropagation();
+            rotateImage(false);
+        });
+
+        btnRotateCw.addEventListener('click', (e) => {
+            e.stopPropagation();
+            rotateImage(true);
+        });
+
+        // ========== 智谱 API 调用核心（替换 Gemini） ==========
+        btnExtract.addEventListener('click', async () => {
+            if (!currentBase64Image) return;
+
+            const targetBase64 = hasSelection ? getCroppedBase64() : currentBase64Image;
+            const statusLabel = hasSelection ? "正在提取选区文字..." : "正在提取文字...";
+
+            setLoading(true, statusLabel, "智谱 GLM-4V-Plus 正在深度识别文字与版式");
+            updateStatus('识别中', 'bg-amber-100 text-amber-700 animate-pulse');
+            recognitionStartTime = performance.now();
+
+            const maxRetries = 5;
+            let attempt = 0;
+            let success = false;
+            let responseData = null;
+
+            // 构建完整 data URL
+            const fullDataUrl = `data:${imageMimeType};base64,${targetBase64}`;
+
+            const promptText = "请把图片中出现的全部文字提取并展示出来。保留原本的自然段落分行和大概排版顺序。直接输出提取出的文本内容，不需要加入任何多余的前言、结语、标号或解释。若没有文字，则输出‘未在指定区域内检测到明显的文字。’";
+
+            while (attempt < maxRetries && !success) {
+                try {
+                    const payload = {
+                        model: modelName,
+                        messages: [
+                            {
+                                role: "user",
+                                content: [
+                                    {
+                                        type: "text",
+                                        text: promptText
+                                    },
+                                    {
+                                        type: "image_url",
+                                        image_url: {
+                                            url: fullDataUrl
+                                        }
+                                    }
+                                ]
+                            }
+                        ],
+                        temperature: 0.1  // 低温度提高提取准确性
+                    };
+
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${apiKey}`
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        throw new Error(`HTTP ${response.status}: ${errorText}`);
+                    }
+
+                    responseData = await response.json();
+                    success = true;
+                } catch (err) {
+                    attempt++;
+                    if (attempt >= maxRetries) {
+                        handleFailure(err);
+                        return;
+                    }
+                    const delay = Math.pow(2, attempt - 1) * 1000;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+
+            if (success && responseData) {
+                handleSuccess(responseData);
+            }
+        });
+
+        function handleSuccess(data) {
+            setLoading(false);
+            const endTime = performance.now();
+            const duration = ((endTime - recognitionStartTime) / 1000).toFixed(1);
+
+            // 智谱返回格式: data.choices[0].message.content
+            let extractedText = data.choices?.[0]?.message?.content || '';
+
+            extractedText = extractedText.trim();
+            if (extractedText.startsWith('```') && extractedText.endsWith('```')) {
+                extractedText = extractedText.replace(/^```[a-zA-Z]*\n/, '').replace(/\n```$/, '');
+            }
+
+            resultText.value = extractedText;
+            resultText.removeAttribute('readonly');
+
+            btnCopy.removeAttribute('disabled');
+            btnDownload.removeAttribute('disabled');
+
+            updateStatus('识别成功', 'bg-emerald-50 text-emerald-700 border border-emerald-200');
+            timeVal.textContent = `${duration}s`;
+            timeBadge.classList.remove('hidden');
+
+            showToast('文字提取成功', 'check-circle', 'text-emerald-400');
+
+            if (extractedText.length < 5 || extractedText.includes('未在指定区域内检测到明显的文字')) {
+                showLowResolutionWarning('无法很好地提取文字，可能是由于选择区域过小、缺乏文本内容、文字过小或清晰度不佳。您可以重新选择更大的清晰区域。');
+            }
+        }
+
+        function handleFailure(error) {
+            setLoading(false);
+            updateStatus('识别失败', 'bg-rose-50 text-rose-700 border border-rose-200');
+            resultText.value = '文字识别失败，请检查您的网络连接或稍后重试。\n\n技术原因: ' + error.message;
+            showToast('识别失败，请重试', 'x-circle', 'text-rose-500');
+        }
+
+        // 复制、下载等辅助函数（完全保持原样）
+        btnCopy.addEventListener('click', () => {
+            const textToCopy = resultText.value;
+            if (!textToCopy) return;
+
+            const tempTextarea = document.createElement('textarea');
+            tempTextarea.value = textToCopy;
+            document.body.appendChild(tempTextarea);
+            tempTextarea.select();
+
+            try {
+                document.execCommand('copy');
+                showToast('已成功复制到剪贴板！', 'check-circle', 'text-emerald-400');
+            } catch (err) {
+                showToast('复制失败，请手动选择复制', 'x-circle', 'text-rose-400');
+            } finally {
+                document.body.removeChild(tempTextarea);
+            }
+        });
+
+        btnDownload.addEventListener('click', () => {
+            const textContent = resultText.value;
+            if (!textContent) return;
+
+            const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `提取文字_${new Date().toISOString().slice(0,10)}.txt`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            showToast('已开始下载文本文件', 'download-cloud', 'text-blue-400');
+        });
+
+        function updateStatus(text, badgeClass) {
+            statusBadge.className = `inline-flex items-center px-2 py-0.5 rounded font-medium ${badgeClass}`;
+            statusBadge.textContent = text;
+        }
+
+        function setLoading(isLoading, title = "", subtitle = "") {
+            if (isLoading) {
+                loadingTitle.textContent = title;
+                loadingSubtitle.textContent = subtitle;
+                loadingOverlay.classList.remove('hidden');
+                btnExtract.setAttribute('disabled', 'true');
+                if (hasSelection) {
+                    btnText.textContent = "正在努力提取选区...";
+                } else {
+                    btnText.textContent = "正在努力提取...";
+                }
+            } else {
+                loadingOverlay.classList.add('hidden');
+                btnExtract.removeAttribute('disabled');
+                if (hasSelection) {
+                    btnText.textContent = "开始提取选区文字";
+                } else {
+                    btnText.textContent = "开始提取文字";
+                }
+            }
+        }
+
+        function showLowResolutionWarning(message) {
+            tipsContent.textContent = message;
+            tipsAlert.classList.remove('hidden');
+        }
+
+        function showToast(message, iconName = 'check-circle', iconColorClass = 'text-emerald-400') {
+            toastMsg.textContent = message;
+            toastIcon.className = `w-4 h-4 ${iconColorClass}`;
+            toastIcon.setAttribute('data-lucide', iconName);
+            lucide.createIcons();
+
+            toast.classList.remove('translate-y-24', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-24', 'opacity-0');
+            }, 2500);
+        }
+    </script>
+</body>
+</html>
