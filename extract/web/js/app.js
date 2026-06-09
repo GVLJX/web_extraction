@@ -1,14 +1,22 @@
 lucide.createIcons();
 
-// 后端固定地址；通过 PyCharm / 直接打开 HTML 时自动指向 8080 端口
+// 动态判断后端地址
 const API_BASE = (() => {
-    const { hostname, port, protocol } = window.location;
-    if (protocol === 'file:') return 'http://127.0.0.1:8080';
-    if ((hostname === '127.0.0.1' || hostname === 'localhost') && port === '8080') return '';
+    // 生产环境：部署在 GitHub Pages 上时，使用 Render 后端
+    if (window.location.hostname === 'gvljx.github.io') {
+        return 'https://tu-pian-ti-qu-xin-xi.onrender.com';
+    }
+    // 本地开发：file:// 协议 或 localhost
+    if (window.location.protocol === 'file:' ||
+        window.location.hostname === '127.0.0.1' ||
+        window.location.hostname === 'localhost') {
+        return 'http://127.0.0.1:8080';
+    }
+    // 其他情况（理论上不会发生）也指向本地
     return 'http://127.0.0.1:8080';
 })();
 
-const apiUrl = `${API_BASE}/api/extract`;
+const apiUrl = `${API_BASE}/api/extract`;  // 确保这里的路径与后端路由一致
 
 let currentBase64Image = null;
 let imageMimeType = null;
