@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图片文字提取工具 - 极简办公</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+        body {
+            font-family: 'Inter', 'Noto Sans SC', sans-serif;
+        }
+        .drag-over {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        #image-wrapper {
+            transition: transform 0.15s ease-out;
+            transform-origin: center center;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- 顶部导航 -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="bg-blue-600 text-white p-2 rounded-lg shadow-md shadow-blue-100">
+                    <i data-lucide="scan-text" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold text-slate-900 tracking-tight">图片文字提取</h1>
+                    <p class="text-xs text-slate-500">专业、轻量的 OCR 识别工具</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-4">
+                <span id="api-status" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <span class="w-1.5 h-1.5 mr-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    API 已连接 (智谱 GLM-4V-Plus)
+                </span>
+                <a href="#" class="text-slate-400 hover:text-slate-600 transition">
+                    <i data-lucide="help-circle" class="w-5 h-5"></i>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主体区域 -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col">
+
+        <div class="mb-6 bg-blue-50 border border-blue-100 rounded-xl p-4 flex items-start space-x-3 text-sm text-blue-800">
+            <i data-lucide="info" class="w-5 h-5 text-blue-600 mt-0.5 shrink-0"></i>
+            <div>
+                <span class="font-semibold">使用指南：</span>
+                支持直接 <span class="underline decoration-dotted">点击上传</span>、<span class="underline decoration-dotted">拖拽图片到窗口</span> 或直接使用 <span class="bg-blue-100 px-1.5 py-0.5 rounded font-mono text-xs">Ctrl + V / Cmd + V</span> 粘贴。在预览图上<span class="font-semibold text-blue-700">拖拽鼠标</span>可选择提取范围，支持右上角工具栏进行<span class="font-semibold text-blue-700">旋转</span>、<span class="font-semibold text-blue-700">缩放</span>及<span class="font-semibold text-blue-700">切换移动/框选模式</span>。
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch flex-grow">
+
+            <!-- 左栏：图片输入/预览区域 -->
+            <div class="flex flex-col bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-md font-semibold text-slate-900 flex items-center space-x-2">
+                        <i data-lucide="image" class="w-5 h-5 text-slate-500"></i>
+                        <span>输入图片源</span>
+                    </h2>
+                    <span id="img-specs" class="text-xs text-slate-400 hidden">尺寸: -- | 大小: --</span>
+                </div>
+
+                <div id="drop-zone" class="flex-grow border-2 border-dashed border-slate-300 hover:border-blue-400 rounded-xl transition-all duration-200 flex flex-col items-center justify-center p-6 text-center cursor-pointer relative overflow-auto min-h-[350px] bg-slate-50/50">
+                    <input type="file" id="file-input" class="absolute inset-0 opacity-0 cursor-pointer" accept="image/*">
+
+                    <div id="upload-prompt" class="space-y-4">
+                        <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto text-slate-400 transition-transform group-hover:scale-110">
+                            <i data-lucide="upload-cloud" class="w-8 h-8"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm font-semibold text-slate-700">点击上传 或将图片拖拽到这里</p>
+                            <p class="text-xs text-slate-400 mt-1">支持 PNG, JPG, JPEG, WEBP 格式</p>
+                        </div>
+                        <div class="pt-2">
+                            <span class="inline-flex items-center space-x-1.5 bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-600 shadow-sm hover:shadow">
+                                <i data-lucide="clipboard" class="w-3.5 h-3.5 text-slate-400"></i>
+                                <span>支持剪贴板粘贴</span>
+                            </span>
+                        </div>
+                    </div>
+
+                    <div id="preview-container" class="hidden w-full h-full flex flex-col items-center justify-center relative">
+                        <div id="image-wrapper" class="relative inline-block max-h-[380px] max-w-full select-none mx-auto">
+                            <img id="image-preview" class="max-h-[380px] w-auto max-w-full rounded-lg block border border-slate-200 shadow-sm" alt="预览图">
+
+                            <div id="selection-mask" class="absolute inset-0 bg-black/30 cursor-crosshair rounded-lg overflow-hidden hidden">
+                                <div id="selection-box" class="absolute border-2 border-dashed border-blue-500 bg-blue-500/10 hidden shadow-[0_0_0_9999px_rgba(0,0,0,0.4)]">
+                                    <div class="absolute bottom-full left-0 mb-1.5 bg-blue-600/90 backdrop-blur-sm text-white text-[10px] font-medium px-1.5 py-0.5 rounded shadow flex items-center space-x-1 whitespace-nowrap pointer-events-none select-none">
+                                        <i data-lucide="crop" class="w-2.5 h-2.5"></i>
+                                        <span>已选范围</span>
+                                    </div>
+                                    <button id="btn-clear-selection" class="absolute top-full right-0 mt-1.5 bg-slate-950/80 hover:bg-slate-900 text-white text-[10px] px-1.5 py-0.5 rounded shadow flex items-center space-x-1 whitespace-nowrap transition z-20">
+                                        <i data-lucide="x" class="w-2.5 h-2.5"></i>
+                                        <span>取消框选</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="absolute top-2 left-2 z-10 bg-slate-900/80 backdrop-blur-sm text-white text-[10px] sm:text-xs px-2.5 py-1 rounded-full flex items-center space-x-1 pointer-events-none">
+                            <i data-lucide="mouse-pointer-square-dashed" class="w-3.5 h-3.5 text-blue-400" id="prompt-icon"></i>
+                            <span id="prompt-text">拖拽鼠标可选择提取范围</span>
+                        </div>
+
+                        <div class="absolute top-2 right-2 z-20 bg-slate-900/90 backdrop-blur-sm text-white px-2.5 py-1 rounded-full flex items-center space-x-2.5 shadow-lg border border-slate-700/50">
+                            <button id="btn-mode-select" class="p-1 text-blue-400 bg-slate-800/80 rounded transition-colors" title="框选模式">
+                                <i data-lucide="mouse-pointer-square-dashed" class="w-4 h-4"></i>
+                            </button>
+                            <button id="btn-mode-pan" class="p-1 hover:text-blue-400 rounded transition-colors" title="移动图片模式">
+                                <i data-lucide="hand" class="w-4 h-4"></i>
+                            </button>
+
+                            <div class="w-[1px] h-3 bg-slate-700"></div>
+
+                            <button id="btn-zoom-out" class="p-1 hover:text-blue-400 hover:bg-slate-800/80 rounded transition-colors" title="缩小">
+                                <i data-lucide="zoom-out" class="w-4 h-4"></i>
+                            </button>
+                            <span id="zoom-level" class="text-xs font-mono font-medium min-w-[36px] text-center">100%</span>
+                            <button id="btn-zoom-in" class="p-1 hover:text-blue-400 hover:bg-slate-800/80 rounded transition-colors" title="放大">
+                                <i data-lucide="zoom-in" class="w-4 h-4"></i>
+                            </button>
+
+                            <div class="w-[1px] h-3 bg-slate-700"></div>
+
+                            <button id="btn-rotate-ccw" class="p-1 hover:text-blue-400 hover:bg-slate-800/80 rounded transition-colors" title="向左旋转90°">
+                                <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                            </button>
+                            <button id="btn-rotate-cw" class="p-1 hover:text-blue-400 hover:bg-slate-800/80 rounded transition-colors" title="向右旋转90°">
+                                <i data-lucide="rotate-cw" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+
+                        <div class="absolute inset-x-0 bottom-2 z-10 flex justify-center pointer-events-none opacity-0 hover:opacity-100 transition-opacity duration-200">
+                            <button id="btn-reupload-overlay" class="pointer-events-auto bg-slate-900/90 hover:bg-slate-950 text-white text-xs font-medium px-3 py-2 rounded-lg flex items-center space-x-1.5 shadow transition">
+                                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                                <span>更换图片</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-6 flex items-center space-x-4">
+                    <button id="btn-clear" class="px-4 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-sm font-medium transition flex items-center justify-center space-x-2 shrink-0 disabled:opacity-50 disabled:pointer-events-none" disabled>
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        <span>重新上传</span>
+                    </button>
+                    <button id="btn-extract" class="flex-grow px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl text-sm transition flex items-center justify-center space-x-2 shadow-lg shadow-blue-100 disabled:opacity-50 disabled:pointer-events-none" disabled>
+                        <i data-lucide="zap" class="w-4 h-4"></i>
+                        <span id="btn-text">开始提取文字</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 右栏：文字提取结果展示 -->
+            <div class="flex flex-col bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-md font-semibold text-slate-900 flex items-center space-x-2">
+                        <i data-lucide="file-text" class="w-5 h-5 text-slate-500"></i>
+                        <span>文字提取结果</span>
+                    </h2>
+
+                    <div id="status-panel" class="flex items-center space-x-2 text-xs">
+                        <span id="status-badge" class="inline-flex items-center px-2 py-0.5 rounded font-medium bg-slate-100 text-slate-600">
+                            待上传
+                        </span>
+                        <span id="time-badge" class="text-slate-400 hidden">
+                            <i data-lucide="clock" class="inline w-3 h-3 mr-0.5"></i>
+                            耗时: <span id="time-val">0.0s</span>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="flex-grow flex flex-col relative min-h-[350px]">
+                    <div id="loading-overlay" class="hidden absolute inset-0 bg-white/80 backdrop-blur-[1px] z-30 flex flex-col items-center justify-center text-center space-y-4 rounded-xl">
+                        <div class="w-12 h-12 rounded-full border-4 border-blue-100 border-t-blue-600 animate-spin"></div>
+                        <div>
+                            <p class="text-sm font-semibold text-slate-800" id="loading-title">正在解析图像...</p>
+                            <p class="text-xs text-slate-500 mt-1" id="loading-subtitle">AI 正在深度解析字符与版式结构</p>
+                        </div>
+                    </div>
+
+                    <div id="tips-alert" class="hidden mb-3 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-lg p-3 flex items-start space-x-2">
+                        <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-600 mt-0.5 shrink-0"></i>
+                        <div>
+                            <span class="font-semibold">提取质量提示：</span>
+                            <span id="tips-content">检测到图片分辨率较低或模糊，建议上传高清晰度截图以获得更精确的文字还原。</span>
+                        </div>
+                    </div>
+
+                    <textarea id="result-text" class="w-full flex-grow p-4 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm leading-relaxed text-slate-700 bg-slate-50/50 resize-none placeholder:text-slate-400" placeholder="提取结果将显示在这里，您可以直接在此处进行二次编辑、整理或修正..." readonly></textarea>
+                </div>
+
+                <div class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
+                    <div class="flex items-center space-x-2 text-xs text-slate-400">
+                        <i data-lucide="info" class="w-4 h-4"></i>
+                        <span>支持手动编辑修改，方便直接整理归档</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button id="btn-copy" class="px-3.5 py-2 border border-slate-200 hover:bg-slate-50 rounded-xl text-xs font-medium text-slate-700 transition flex items-center space-x-1.5 disabled:opacity-50 disabled:pointer-events-none" disabled>
+                            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                            <span id="copy-text">一键复制</span>
+                        </button>
+                        <button id="btn-download" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-medium transition flex items-center space-x-1.5 disabled:opacity-50 disabled:pointer-events-none" disabled>
+                            <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                            <span>下载 TXT</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <footer class="bg-white border-t border-slate-200 py-6 mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-xs text-slate-400 space-y-2">
+            <p>基于 智谱 GLM-4V-Plus 构建的文字提取演示</p>
+            <p>© 2026 智能办公助手. All Rights Reserved.</p>
+        </div>
+    </footer>
+
+    <div id="toast" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white px-4 py-2.5 rounded-xl text-sm font-medium shadow-lg flex items-center space-x-2 translate-y-24 opacity-0 transition-all duration-300 z-50">
+        <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400" id="toast-icon"></i>
+        <span id="toast-msg">复制成功</span>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
