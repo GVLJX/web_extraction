@@ -42,9 +42,8 @@ const dropZone = document.getElementById('drop-zone');
 const fileInput = document.getElementById('file-input');
 const uploadPrompt = document.getElementById('upload-prompt');
 const previewContainer = document.getElementById('preview-container');
+const previewToolbar = document.getElementById('preview-toolbar');
 const imagePreview = document.getElementById('image-preview');
-const imgSpecs = document.getElementById('img-specs');
-
 const btnClear = document.getElementById('btn-clear');
 const btnExtract = document.getElementById('btn-extract');
 const btnReuploadOverlay = document.getElementById('btn-reupload-overlay');
@@ -70,9 +69,6 @@ const imageWrapper = document.getElementById('image-wrapper');
 const selectionMask = document.getElementById('selection-mask');
 const selectionBox = document.getElementById('selection-box');
 const btnClearSelection = document.getElementById('btn-clear-selection');
-
-const promptIcon = document.getElementById('prompt-icon');
-const promptText = document.getElementById('prompt-text');
 
 const btnZoomIn = document.getElementById('btn-zoom-in');
 const btnZoomOut = document.getElementById('btn-zoom-out');
@@ -169,10 +165,6 @@ function handleImageFile(file) {
         return;
     }
 
-    const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
-    imgSpecs.textContent = `文件大小: ${sizeInMB} MB`;
-    imgSpecs.classList.remove('hidden');
-
     const reader = new FileReader();
     reader.readAsDataURL(file);
     reader.onloadend = () => {
@@ -183,6 +175,7 @@ function handleImageFile(file) {
         imagePreview.src = base64Data;
         uploadPrompt.classList.add('hidden');
         previewContainer.classList.remove('hidden');
+        previewToolbar.classList.remove('hidden');
 
         selectionMask.classList.remove('hidden');
         clearSelection();
@@ -205,7 +198,6 @@ function handleImageFile(file) {
         const img = new Image();
         img.src = base64Data;
         img.onload = function() {
-            imgSpecs.textContent = `尺寸: ${this.width} x ${this.height} | 大小: ${sizeInMB} MB`;
             if (this.width < 500 || this.height < 500) {
                 showLowResolutionWarning('图片分辨率偏低，提取效果可能会受到影响，建议上传更高清晰度的原图。');
             }
@@ -225,7 +217,7 @@ function resetAll() {
     imagePreview.src = '';
     uploadPrompt.classList.remove('hidden');
     previewContainer.classList.add('hidden');
-    imgSpecs.classList.add('hidden');
+    previewToolbar.classList.add('hidden');
     selectionMask.classList.add('hidden');
     clearSelection();
     resetZoom();
@@ -441,9 +433,6 @@ function rotateImage(clockwise = true) {
         currentBase64Image = rotatedBase64.split(',')[1];
         imagePreview.src = rotatedBase64;
 
-        const sizeInMB = (rotatedBase64.length * 0.75 / (1024 * 1024)).toFixed(2);
-        imgSpecs.textContent = `尺寸: ${canvas.width} x ${canvas.height} | 大小: ${sizeInMB} MB`;
-
         clearSelection();
         panX = 0;
         panY = 0;
@@ -463,8 +452,6 @@ function setMode(mode, silent = false) {
         btnModePan.classList.add('hover:text-blue-400');
 
         selectionMask.style.cursor = 'crosshair';
-        promptText.textContent = "拖拽鼠标可选择提取范围";
-        promptIcon.setAttribute('data-lucide', 'mouse-pointer-square-dashed');
 
         if (!silent) showToast('已进入框选模式，拖拽框选文字范围', 'mouse-pointer-square-dashed', 'text-blue-400');
     } else {
@@ -474,8 +461,6 @@ function setMode(mode, silent = false) {
         btnModeSelect.classList.add('hover:text-blue-400');
 
         selectionMask.style.cursor = 'grab';
-        promptText.textContent = "按住鼠标左键可拖拽移动视图";
-        promptIcon.setAttribute('data-lucide', 'hand');
 
         if (!silent) showToast('已进入移动模式，支持全方位无限制拖拽漫游图片', 'hand', 'text-blue-400');
     }
