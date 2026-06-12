@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>图片文字提取工具 - 极简办公</title>
+    <title>图片文字提取工具</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Lucide Icons -->
@@ -34,6 +34,30 @@
         #image-wrapper {
             transition: transform 0.15s ease-out;
             transform-origin: center center;
+        }
+        .resize-handle {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #fff;
+            border: 2px solid #3b82f6;
+            border-radius: 50%;
+            z-index: 10;
+            pointer-events: auto;
+            box-shadow: 0 0 0 2px rgba(59,130,246,0.2);
+        }
+        .resize-handle.handle-n  { top: -5px; left: 50%; margin-left: -5px; cursor: n-resize; }
+        .resize-handle.handle-s  { bottom: -5px; left: 50%; margin-left: -5px; cursor: s-resize; }
+        .resize-handle.handle-w  { left: -5px; top: 50%; margin-top: -5px; cursor: w-resize; }
+        .resize-handle.handle-e  { right: -5px; top: 50%; margin-top: -5px; cursor: e-resize; }
+        .resize-handle.handle-nw { top: -5px; left: -5px; cursor: nw-resize; }
+        .resize-handle.handle-ne { top: -5px; right: -5px; cursor: ne-resize; }
+        .resize-handle.handle-sw { bottom: -5px; left: -5px; cursor: sw-resize; }
+        .resize-handle.handle-se { bottom: -5px; right: -5px; cursor: se-resize; }
+        .resize-handle:hover {
+            background: #3b82f6;
+            transform: scale(1.3);
+            box-shadow: 0 0 0 4px rgba(59,130,246,0.3);
         }
     </style>
 </head>
@@ -137,6 +161,14 @@
 
                             <div id="selection-mask" class="absolute inset-0 bg-black/30 cursor-crosshair rounded-lg overflow-hidden hidden">
                                 <div id="selection-box" class="absolute border-2 border-dashed border-blue-500 bg-blue-500/10 hidden shadow-[0_0_0_9999px_rgba(0,0,0,0.4)]">
+                                    <div class="resize-handle handle-nw" data-handle="nw"></div>
+                                    <div class="resize-handle handle-n" data-handle="n"></div>
+                                    <div class="resize-handle handle-ne" data-handle="ne"></div>
+                                    <div class="resize-handle handle-e" data-handle="e"></div>
+                                    <div class="resize-handle handle-se" data-handle="se"></div>
+                                    <div class="resize-handle handle-s" data-handle="s"></div>
+                                    <div class="resize-handle handle-sw" data-handle="sw"></div>
+                                    <div class="resize-handle handle-w" data-handle="w"></div>
                                     <div class="absolute bottom-full left-0 mb-1.5 bg-blue-600/90 backdrop-blur-sm text-white text-[10px] font-medium px-1.5 py-0.5 rounded shadow flex items-center space-x-1 whitespace-nowrap pointer-events-none select-none">
                                         <i data-lucide="crop" class="w-2.5 h-2.5"></i>
                                         <span></span>
