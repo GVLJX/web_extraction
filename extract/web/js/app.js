@@ -500,6 +500,31 @@ function resetZoom() {
     updateZoomAndPan();
 }
 
+function wheelZoom(e) {
+    if (!currentBase64Image) return;
+    e.preventDefault();
+
+    const rect = dropZone.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    const imgPointX = (mouseX - panX) / zoomScale;
+    const imgPointY = (mouseY - panY) / zoomScale;
+
+    const step = 0.1;
+    const prevZoom = zoomScale;
+    if (e.deltaY < 0) {
+        zoomScale = Math.min(3.0, zoomScale + step);
+    } else {
+        zoomScale = Math.max(0.5, zoomScale - step);
+    }
+    if (zoomScale === prevZoom) return;
+
+    panX = mouseX - imgPointX * zoomScale;
+    panY = mouseY - imgPointY * zoomScale;
+    updateZoomAndPan();
+}
+
 function rotateImage(clockwise = true) {
     if (!imagePreview.src || !currentBase64Image) return;
 
@@ -590,6 +615,18 @@ btnRotateCcw.addEventListener('click', (e) => {
 btnRotateCw.addEventListener('click', (e) => {
     e.stopPropagation();
     rotateImage(true);
+});
+
+dropZone.addEventListener('wheel', wheelZoom, { passive: false });
+
+window.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.altKey && e.code === 'KeyA') {
+        e.preventDefault();
+        if (!currentBase64Image) return;
+        setMode('select');
+        clearSelection();
+        showToast('快捷键已切换到框选模式', 'mouse-pointer-square-dashed', 'text-blue-400');
+    }
 });
 
 btnExtract.addEventListener('click', async () => {
