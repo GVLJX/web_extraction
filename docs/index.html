@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>图片文字提取工具 - 极简办公</title>
+    <title>图片文字提取工具</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Lucide Icons -->
@@ -34,6 +34,30 @@
         #image-wrapper {
             transition: transform 0.15s ease-out;
             transform-origin: center center;
+        }
+        .resize-handle {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #fff;
+            border: 2px solid #3b82f6;
+            border-radius: 50%;
+            z-index: 10;
+            pointer-events: auto;
+            box-shadow: 0 0 0 2px rgba(59,130,246,0.2);
+        }
+        .resize-handle.handle-n  { top: -5px; left: 50%; margin-left: -5px; cursor: n-resize; }
+        .resize-handle.handle-s  { bottom: -5px; left: 50%; margin-left: -5px; cursor: s-resize; }
+        .resize-handle.handle-w  { left: -5px; top: 50%; margin-top: -5px; cursor: w-resize; }
+        .resize-handle.handle-e  { right: -5px; top: 50%; margin-top: -5px; cursor: e-resize; }
+        .resize-handle.handle-nw { top: -5px; left: -5px; cursor: nw-resize; }
+        .resize-handle.handle-ne { top: -5px; right: -5px; cursor: ne-resize; }
+        .resize-handle.handle-sw { bottom: -5px; left: -5px; cursor: sw-resize; }
+        .resize-handle.handle-se { bottom: -5px; right: -5px; cursor: se-resize; }
+        .resize-handle:hover {
+            background: #3b82f6;
+            transform: scale(1.3);
+            box-shadow: 0 0 0 4px rgba(59,130,246,0.3);
         }
     </style>
 </head>
@@ -137,6 +161,14 @@
 
                             <div id="selection-mask" class="absolute inset-0 bg-black/30 cursor-crosshair rounded-lg overflow-hidden hidden">
                                 <div id="selection-box" class="absolute border-2 border-dashed border-blue-500 bg-blue-500/10 hidden shadow-[0_0_0_9999px_rgba(0,0,0,0.4)]">
+                                    <div class="resize-handle handle-nw" data-handle="nw"></div>
+                                    <div class="resize-handle handle-n" data-handle="n"></div>
+                                    <div class="resize-handle handle-ne" data-handle="ne"></div>
+                                    <div class="resize-handle handle-e" data-handle="e"></div>
+                                    <div class="resize-handle handle-se" data-handle="se"></div>
+                                    <div class="resize-handle handle-s" data-handle="s"></div>
+                                    <div class="resize-handle handle-sw" data-handle="sw"></div>
+                                    <div class="resize-handle handle-w" data-handle="w"></div>
                                     <div class="absolute bottom-full left-0 mb-1.5 bg-blue-600/90 backdrop-blur-sm text-white text-[10px] font-medium px-1.5 py-0.5 rounded shadow flex items-center space-x-1 whitespace-nowrap pointer-events-none select-none">
                                         <i data-lucide="crop" class="w-2.5 h-2.5"></i>
                                         <span></span>
@@ -242,6 +274,62 @@
         <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400" id="toast-icon"></i>
         <span id="toast-msg">复制成功</span>
     </div>
+
+    <!-- 右侧公告栏 -->
+    <button id="bulletin-toggle" class="fixed z-50 top-28 w-8 h-8 bg-sky-50 border border-sky-200 rounded-l-lg flex items-center justify-center text-sky-500 hover:text-sky-700 hover:bg-sky-100 transition shadow-sm" style="right: 288px;" title="折叠/展开公告栏">
+        <i data-lucide="chevron-right" id="bulletin-chevron" class="w-4 h-4 transition-transform duration-300"></i>
+    </button>
+    <div id="bulletin-board" class="fixed right-0 top-24 z-40 w-72 bg-sky-50 border border-sky-200 rounded-2xl shadow-lg shadow-sky-100/50 transition-all duration-300">
+        <div class="p-4">
+            <div class="flex items-center space-x-2 mb-3 pb-2 border-b border-sky-200/60">
+                <div class="w-7 h-7 bg-sky-400 rounded-lg flex items-center justify-center shadow-sm">
+                    <i data-lucide="megaphone" class="w-4 h-4 text-white"></i>
+                </div>
+                <span class="text-sm font-semibold text-sky-700">公告栏</span>
+            </div>
+            <div id="bulletin-content" class="space-y-3 text-sm text-sky-800">
+                <div class="bg-white/60 rounded-xl p-3 border border-sky-100">
+                    <p class="text-xs leading-relaxed">欢迎使用图片文字提取工具，当前基于 <span class="font-medium text-sky-600">智谱 GLM-4V-Plus</span> 模型驱动。</p>
+                </div>
+                <div class="bg-white/60 rounded-xl p-3 border border-sky-100">
+                    <p class="text-xs text-sky-600 font-medium mb-1">支持格式</p>
+                    <p class="text-xs leading-relaxed">PNG / JPG / JPEG / WEBP，建议上传清晰原图以获得更佳效果。</p>
+                </div>
+                  <div class="bg-white/60 rounded-xl p-3 border border-sky-100">
+                    <p class="text-xs text-sky-600 font-medium mb-1">鼠标框选优化</p>
+                    <p class="text-xs leading-relaxed">可以二次拖拽缩放大小\框选快捷键ctrl+lat+a</p>
+                </div>
+                </div>
+                  <div class="bg-white/60 rounded-xl p-3 border border-sky-100">
+                    <p class="text-xs text-sky-600 font-medium mb-1">图片移动模式优化</p>
+                    <p class="text-xs leading-relaxed">可通过鼠标滚轮进行对上传内容进行缩小放大</p>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // 公告栏折叠/展开
+    (function() {
+        const board = document.getElementById('bulletin-board');
+        const toggle = document.getElementById('bulletin-toggle');
+        const chevron = document.getElementById('bulletin-chevron');
+        let collapsed = false;
+        toggle.addEventListener('click', () => {
+            collapsed = !collapsed;
+            if (collapsed) {
+                board.style.transform = 'translateX(100%)';
+                toggle.style.right = '0';
+                chevron.style.transform = 'rotate(180deg)';
+            } else {
+                board.style.transform = 'translateX(0)';
+                toggle.style.right = '288px';
+                chevron.style.transform = 'rotate(0deg)';
+            }
+        });
+    })();
+    </script>
 
     <script src="js/app.js"></script>
 </body>

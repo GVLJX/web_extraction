@@ -38,6 +38,15 @@ let panStartY = 0;
 let scrollStartX = 0;
 let scrollStartY = 0;
 
+let isResizing = false;
+let resizeHandle = null;
+let resizeStartMouseX = 0;
+let resizeStartMouseY = 0;
+let resizeStartLeft = 0;
+let resizeStartTop = 0;
+let resizeStartWidth = 0;
+let resizeStartHeight = 0;
+
 const dropZone = document.getElementById('drop-zone');
 const fileInput = document.getElementById('file-input');
 const uploadPrompt = document.getElementById('upload-prompt');
@@ -241,6 +250,22 @@ function startDrag(e) {
         return;
     }
 
+    // 检测是否拖拽缩放手柄
+    const handle = e.target.closest('[data-handle]');
+    if (handle && hasSelection) {
+        isResizing = true;
+        resizeHandle = handle.dataset.handle;
+        resizeStartMouseX = e.clientX || (e.touches && e.touches[0].clientX);
+        resizeStartMouseY = e.clientY || (e.touches && e.touches[0].clientY);
+        resizeStartLeft = parseFloat(selectionBox.style.left);
+        resizeStartTop = parseFloat(selectionBox.style.top);
+        resizeStartWidth = parseFloat(selectionBox.style.width);
+        resizeStartHeight = parseFloat(selectionBox.style.height);
+        e.stopPropagation();
+        e.preventDefault();
+        return;
+    }
+
     const clientX = e.clientX || (e.touches && e.touches[0].clientX);
     const clientY = e.clientY || (e.touches && e.touches[0].clientY);
 
@@ -268,6 +293,11 @@ function startDrag(e) {
 function drag(e) {
     const clientX = e.clientX || (e.touches && e.touches[0].clientX);
     const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+
+    if (isResizing) {
+        handleResize(clientX, clientY);
+        return;
+    }
 
     if (isPanning) {
         const dx = clientX - panStartX;
@@ -303,6 +333,12 @@ function drag(e) {
 }
 
 function endDrag() {
+    if (isResizing) {
+        isResizing = false;
+        resizeHandle = null;
+        return;
+    }
+
     if (isPanning) {
         isPanning = false;
         selectionMask.style.cursor = 'grab';
@@ -324,6 +360,65 @@ function endDrag() {
     } else {
         clearSelection();
     }
+}
+
+function handleResize(clientX, clientY) {
+    const dx = (clientX - resizeStartMouseX) / zoomScale;
+    const dy = (clientY - resizeStartMouseY) / zoomScale;
+    const maskRect = selectionMask.getBoundingClientRect();
+    const maxW = maskRect.width / zoomScale;
+    const maxH = maskRect.height / zoomScale;
+
+    let newLeft = resizeStartLeft;
+    let newTop = resizeStartTop;
+    let newWidth = resizeStartWidth;
+    let newHeight = resizeStartHeight;
+
+    switch (resizeHandle) {
+        case 'nw':
+            newLeft = clamp(resizeStartLeft + dx, 0, resizeStartLeft + resizeStartWidth - 15);
+            newTop = clamp(resizeStartTop + dy, 0, resizeStartTop + resizeStartHeight - 15);
+            newWidth = resizeStartWidth - (newLeft - resizeStartLeft);
+            newHeight = resizeStartHeight - (newTop - resizeStartTop);
+            break;
+        case 'n':
+            newTop = clamp(resizeStartTop + dy, 0, resizeStartTop + resizeStartHeight - 15);
+            newHeight = resizeStartHeight - (newTop - resizeStartTop);
+            break;
+        case 'ne':
+            newTop = clamp(resizeStartTop + dy, 0, resizeStartTop + resizeStartHeight - 15);
+            newWidth = clamp(resizeStartWidth + dx, 15, maxW - resizeStartLeft);
+            newHeight = resizeStartHeight - (newTop - resizeStartTop);
+            break;
+        case 'e':
+            newWidth = clamp(resizeStartWidth + dx, 15, maxW - resizeStartLeft);
+            break;
+        case 'se':
+            newWidth = clamp(resizeStartWidth + dx, 15, maxW - resizeStartLeft);
+            newHeight = clamp(resizeStartHeight + dy, 15, maxH - resizeStartTop);
+            break;
+        case 's':
+            newHeight = clamp(resizeStartHeight + dy, 15, maxH - resizeStartTop);
+            break;
+        case 'sw':
+            newLeft = clamp(resizeStartLeft + dx, 0, resizeStartLeft + resizeStartWidth - 15);
+            newWidth = resizeStartWidth - (newLeft - resizeStartLeft);
+            newHeight = clamp(resizeStartHeight + dy, 15, maxH - resizeStartTop);
+            break;
+        case 'w':
+            newLeft = clamp(resizeStartLeft + dx, 0, resizeStartLeft + resizeStartWidth - 15);
+            newWidth = resizeStartWidth - (newLeft - resizeStartLeft);
+            break;
+    }
+
+    selectionBox.style.left = newLeft + 'px';
+    selectionBox.style.top = newTop + 'px';
+    selectionBox.style.width = newWidth + 'px';
+    selectionBox.style.height = newHeight + 'px';
+}
+
+function clamp(val, min, max) {
+    return Math.max(min, Math.min(max, val));
 }
 
 function clearSelection() {
@@ -402,6 +497,31 @@ function resetZoom() {
     zoomScale = 1.0;
     panX = 0;
     panY = 0;
+    updateZoomAndPan();
+}
+
+function wheelZoom(e) {
+    if (!currentBase64Image) return;
+    e.preventDefault();
+
+    const rect = dropZone.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    const imgPointX = (mouseX - panX) / zoomScale;
+    const imgPointY = (mouseY - panY) / zoomScale;
+
+    const step = 0.1;
+    const prevZoom = zoomScale;
+    if (e.deltaY < 0) {
+        zoomScale = Math.min(3.0, zoomScale + step);
+    } else {
+        zoomScale = Math.max(0.5, zoomScale - step);
+    }
+    if (zoomScale === prevZoom) return;
+
+    panX = mouseX - imgPointX * zoomScale;
+    panY = mouseY - imgPointY * zoomScale;
     updateZoomAndPan();
 }
 
@@ -495,6 +615,18 @@ btnRotateCcw.addEventListener('click', (e) => {
 btnRotateCw.addEventListener('click', (e) => {
     e.stopPropagation();
     rotateImage(true);
+});
+
+dropZone.addEventListener('wheel', wheelZoom, { passive: false });
+
+window.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.altKey && e.code === 'KeyA') {
+        e.preventDefault();
+        if (!currentBase64Image) return;
+        setMode('select');
+        clearSelection();
+        showToast('快捷键已切换到框选模式', 'mouse-pointer-square-dashed', 'text-blue-400');
+    }
 });
 
 btnExtract.addEventListener('click', async () => {
